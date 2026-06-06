@@ -105,7 +105,7 @@ public class PlayerListener implements Listener {
         }
     }
 
-    /** Прибрати сокирку коли гравець виходить з лобі в інший світ */
+/** Прибрати сокирку коли гравець виходить з лобі в інший світ */
     @EventHandler
     public void onWorldChange(PlayerChangedWorldEvent e) {
         Player p = e.getPlayer();
@@ -114,7 +114,15 @@ public class PlayerListener implements Listener {
 
         // Виходить з лобі → прибрати сокирку щоб не заносити в survival/анархію
         if (fromWorld.equals(lobbyWorld) && !isInGameWorld(p)) {
-            p.getInventory().removeIf(item -> plugin.getSelectorItem().isSelector(item));
+            // Безпечний цикл для Bukkit замість removeIf:
+            org.bukkit.inventory.ItemStack[] contents = p.getInventory().getContents();
+            for (int i = 0; i < contents.length; i++) {
+                org.bukkit.inventory.ItemStack item = contents[i];
+                if (item != null && plugin.getSelectorItem().isSelector(item)) {
+                    p.getInventory().setItem(i, null); // Видаляємо предмет зі слоту
+                }
+            }
+            p.updateInventory(); // Оновлюємо інвентар у гравця на екрані
         }
     }
 }
