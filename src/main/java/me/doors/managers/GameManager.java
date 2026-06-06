@@ -5,6 +5,7 @@ import me.doors.rooms.Room;
 import me.doors.rooms.RoomGenerator;
 import me.doors.utils.ColorUtils;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
