@@ -1,8 +1,8 @@
 package me.doors.managers;
 
 import me.doors.DoorsPlugin;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -39,7 +39,10 @@ public class HUDManager {
     }
 
     public void sendActionBar(Player p, String msg) {
-        p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));
+        // Paper Adventure API — no deprecation
+        Component component = LegacyComponentSerializer.legacySection().deserialize(
+                msg.replace("&", "§"));
+        p.sendActionBar(component);
     }
 
     public void removeHUD(Player p) {
