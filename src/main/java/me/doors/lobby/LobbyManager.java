@@ -107,10 +107,14 @@ public class LobbyManager {
     private void checkPlayerPositions(LobbyPortal portal) {
         for (UUID uid : new HashSet<>(portal.getWaiting())) {
             Player p = Bukkit.getPlayer(uid);
-            if (p == null || !p.isOnline()) { removeFromPortal(uid, portal); continue; }
-            // Check if still near portal (within 2.5 blocks)
+            if (p == null || !p.isOnline()) {
+                portal.removePlayer(uid);
+                playerPortal.remove(uid);
+                continue;
+            }
             if (p.getLocation().distanceSquared(portal.getCenter()) > 9) {
-                removeFromPortal(uid, portal);
+                portal.removePlayer(uid);
+                playerPortal.remove(uid);
             }
         }
     }
