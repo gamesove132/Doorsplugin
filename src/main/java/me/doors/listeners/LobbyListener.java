@@ -14,55 +14,68 @@ public class LobbyListener implements Listener {
         this.plugin = plugin;
     }
 
-    /** Player moves onto a portal platform — check position each move */
+    // ── Helper ────────────────────────────────────────────────────────
+
+    private boolean isInLobby(Player p) {
+        String lobbyWorld = plugin.getConfig().getString("lobby.world", "world");
+        return p.getWorld().getName().equals(lobbyWorld);
+    }
+
+    // ── Events ────────────────────────────────────────────────────────
+
+    /**
+     * Портальна платформа — перевіряємо позицію тільки в лобі-світі.
+     * В інших світах (Multiverse) — нічого не робимо.
+     */
     @EventHandler
     public void onMove(PlayerMoveEvent e) {
-        if (plugin.getGameManager().isInGame(e.getPlayer())) return;
-        // Only check when block changes (cheaper)
+        Player player = e.getPlayer();
+        if (!isInLobby(player)) return;
+        if (plugin.getGameManager().isInGame(player)) return;
+        // Перевіряємо тільки коли міняється блок (дешевше)
         if (e.getFrom().getBlockX() == e.getTo().getBlockX() &&
             e.getFrom().getBlockZ() == e.getTo().getBlockZ()) return;
 
-        Player player = e.getPlayer();
         int slot = plugin.getLobbyManager().getPortalSlotAt(player.getLocation());
         if (slot > 0 && !plugin.getLobbyManager().isInPortal(player)) {
             plugin.getLobbyManager().tryJoinPortal(player, slot);
         }
     }
 
-    /** Right-click with selector item → open menu */
+    /**
+     * ПКМ сокиркою → меню порталів.
+     * Тільки в лобі-світі.
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK &&
             e.getAction() != Action.RIGHT_CLICK_AIR) return;
         Player p = e.getPlayer();
+        if (!isInLobby(p)) return;
         if (plugin.getGameManager().isInGame(p)) return;
         if (!plugin.getSelectorItem().isSelector(p.getInventory().getItemInMainHand())) return;
         e.setCancelled(true);
         plugin.getLobbyManager().openSelectorMenu(p);
     }
 
-    /** Give selector item when player joins lobby world */
+    /**
+     * Видаємо сокирку тільки коли гравець заходить у лобі-світ.
+     * Зайшов через /mvtp, /spawn або просто join — без різниці.
+     */
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-        String lobbyWorld = plugin.getConfig().getString("lobby.world", "world");
-        if (p.getWorld().getName().equals(lobbyWorld)) {
-            giveSelectorIfNeeded(p);
-        }
+        if (isInLobby(p)) giveSelectorIfNeeded(p);
     }
 
-    /** Give selector item when player changes world into lobby */
     @EventHandler
     public void onWorldChange(PlayerChangedWorldEvent e) {
         Player p = e.getPlayer();
-        String lobbyWorld = plugin.getConfig().getString("lobby.world", "world");
-        if (p.getWorld().getName().equals(lobbyWorld)) {
-            giveSelectorIfNeeded(p);
-        }
+        if (isInLobby(p)) giveSelectorIfNeeded(p);
+        // Якщо виходить з лобі — PlayerListener.onWorldChange прибере сокирку
     }
 
     private void giveSelectorIfNeeded(Player p) {
-        // Only give if they don't already have one
         for (org.bukkit.inventory.ItemStack item : p.getInventory().getContents()) {
             if (plugin.getSelectorItem().isSelector(item)) return;
         }
