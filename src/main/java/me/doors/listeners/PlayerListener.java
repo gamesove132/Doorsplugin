@@ -17,6 +17,22 @@ public class PlayerListener implements Listener {
         this.plugin = plugin;
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────
+
+    /** True if player is in the DOORS lobby world */
+    private boolean isInLobby(Player p) {
+        String lobbyWorld = plugin.getConfig().getString("lobby.world", "world");
+        return p.getWorld().getName().equals(lobbyWorld);
+    }
+
+    /** True if player is in the DOORS game world */
+    private boolean isInGameWorld(Player p) {
+        String gameWorld = plugin.getConfig().getString("game.game-world", "doors_world");
+        return p.getWorld().getName().equals(gameWorld);
+    }
+
+    // ── Events ────────────────────────────────────────────────────────
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onDeath(PlayerDeathEvent e) {
         Player p = e.getEntity();
@@ -40,39 +56,65 @@ public class PlayerListener implements Listener {
         if (plugin.getLobbyManager().isInPortal(p)) plugin.getLobbyManager().leavePortal(p);
     }
 
-    /** Prevent breaking blocks inside game world */
+    /**
+     * Prevent breaking blocks:
+     *  - завжди в game world
+     *  - тільки в lobby world якщо тримає сокирку (щоб не зломати лобі)
+     *  - в інших світах (survival, анархія) — НЕ скасовуємо
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onBreak(BlockBreakEvent e) {
         Player p = e.getPlayer();
-        if (plugin.getGameManager().isInGame(p)) { e.setCancelled(true); return; }
-        // Also cancel if using selector item anywhere
-        if (plugin.getSelectorItem().isSelector(p.getInventory().getItemInMainHand())) {
+        // Game world — завжди блокуємо
+        if (isInGameWorld(p)) { e.setCancelled(true); return; }
+        // Lobby world — блокуємо тільки сокирку щоб не ламати платформи порталів
+        if (isInLobby(p) && plugin.getSelectorItem().isSelector(p.getInventory().getItemInMainHand())) {
             e.setCancelled(true);
         }
+        // Інші світи — нічого не робимо, не заважаємо Multiverse
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlace(BlockPlaceEvent e) {
-        if (plugin.getGameManager().isInGame(e.getPlayer())) e.setCancelled(true);
+        // Тільки в game world
+        if (isInGameWorld(e.getPlayer())) e.setCancelled(true);
     }
 
-    /** Prevent selector item drop */
+    /**
+     * Prevent selector drop тільки в лобі і game world.
+     * В інших світах гравець може дропнути що завгодно.
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onDrop(PlayerDropItemEvent e) {
+        Player p = e.getPlayer();
+        if (!isInLobby(p) && !isInGameWorld(p)) return;
         if (plugin.getSelectorItem().isSelector(e.getItemDrop().getItemStack())) {
             e.setCancelled(true);
         }
     }
 
-    /** Prevent selector item from being moved into other inventories unexpectedly */
+    /** Prevent selector item moved in lobby/game */
     @EventHandler(priority = EventPriority.HIGH)
     public void onItemMove(InventoryClickEvent e) {
-        if (!(e.getWhoClicked() instanceof Player)) return;
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (!isInLobby(p) && !isInGameWorld(p)) return;
         if (e.getCurrentItem() != null && plugin.getSelectorItem().isSelector(e.getCurrentItem())) {
-            // Only allow within player inventory
             if (e.getView().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
                 e.setCancelled(true);
             }
+        }
+    }
+
+    /** Прибрати сокирку коли гравець виходить з лобі в інший світ */
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent e) {
+        Player p = e.getPlayer();
+        String fromWorld = e.getFrom().getName();
+        String lobbyWorld = plugin.getConfig().getString("lobby.world", "world");
+
+        // Виходить з лобі → прибрати сокирку щоб не заносити в survival/анархію
+        if (fromWorld.equals(lobbyWorld) && !isInGameWorld(p)) {
+            p.getInventory().removeIf(item -> plugin.getSelectorItem().isSelector(item));
         }
     }
 }
